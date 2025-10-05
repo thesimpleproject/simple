@@ -71,6 +71,13 @@ class Parser:
             return self.parse_binop()
         elif c in "0123456789":
             return self.parse_number()
+        elif c in "abcdefghijklmnopqrstuvwxyz":
+            return self.parse_identifier()
+        
+    def parse_identifier(self):
+        s = self._cs.read_until_whitespace()
+
+        return ('ident', s, self._cs._line_no, self._cs._fname)
 
     def parse_binop(self):
         s = self._cs.read_until_whitespace()
