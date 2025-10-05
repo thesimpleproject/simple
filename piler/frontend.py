@@ -24,7 +24,7 @@ class CharStream:
 
         return c
 
-    def read_until_whitespace(self):
+    def read_until(self):
         s = ""
         while True:
             c = self.read()
@@ -35,6 +35,9 @@ class CharStream:
                     return s
 
             if c == ' ' or c == '\n' or c == '\r' or c == '\t':
+                return s
+            if c == '(' or c == ')' or c == '[' or c == ']':
+                self.putback(c)
                 return s
             print(s,"+=",c)
             s += c
@@ -64,6 +67,9 @@ class Parser:
         l = self._cs.lookahead()
         self._cs.putback(c)
 
+        if c == None:
+            return None
+
         if c in "+-/*":
             if c == '-':
                 if l in '0123456789':
@@ -73,14 +79,47 @@ class Parser:
             return self.parse_number()
         elif c in "abcdefghijklmnopqrstuvwxyz":
             return self.parse_identifier()
+
+    def parse_lparen(self):
+        c = self._cs.read()
+        if c != '(':
+            raise Exception("Parser: Expected ( but got %s!" % c)
+
+    def parse_rparen(self):
+        c = self._cs.read()
+        if c != ')':
+            raise Exception("Parser: Expected ) but got %s!" % c)
+
+    def parse_call(self, ident):
+        self.parse_lparen()
+
+        xs = []
+
+        while True:
+            if self._cs.lookahead() == ')':
+                break
+
+            e = self.parse_expression()
+            if e == None:
+                raise Exception("Parser: Expected expression in call!")
+
+            xs.append(self.parse_expression())
+
+        self.parse_rparen()
+
+        return ("call", ident, xs, self._cs._line_no, self._cs._fname)
         
     def parse_identifier(self):
-        s = self._cs.read_until_whitespace()
+        s = self._cs.read_until()
+
+        l = self._cs.lookahead()
+        if l == '(':
+            return self.parse_call(s)
 
         return ('ident', s, self._cs._line_no, self._cs._fname)
 
     def parse_binop(self):
-        s = self._cs.read_until_whitespace()
+        s = self._cs.read_until()
 
         if s in "+-/*":
             left = self.parse_expression()
@@ -90,7 +129,7 @@ class Parser:
             raise Exception("Parser: Not a valid binop: %s!" % s)
 
     def parse_number(self):
-        s = self._cs.read_until_whitespace()
+        s = self._cs.read_until()
 
         for c in s:
             if c < '0' or c > '9':
